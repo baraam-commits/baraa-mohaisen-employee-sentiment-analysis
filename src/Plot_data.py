@@ -152,3 +152,38 @@ class PlotData:
         plt.tight_layout()
         plt.savefig("visualizations/message_length_by_sentiment.png")
         plt.close()
+        
+
+    def plot_avg_message_length_per_employee(self, text_column="body", employee_column="employee_id"):
+        """
+        Compute and visualize the average message length per employee.
+
+        Output:
+            - 'visualizations/avg_message_length_per_employee.png' (bar chart)
+            - 'visualizations/avg_message_length_per_employee.csv' (data table)
+
+        Purpose:
+            Shows which employees tend to write longer or shorter messages,
+            which can help interpret engagement style and communication behavior.
+        """
+        # Compute message length per record
+        self.df["message_length"] = self.df[text_column].astype(str).apply(len)
+
+        # Aggregate by employee
+        avg_length = (
+            self.df.groupby(employee_column)["message_length"]
+            .mean()
+            .sort_values(ascending=False)
+        )
+
+
+        # Plot
+        plt.figure(figsize=(10, 6))
+        plt.bar(avg_length.index, avg_length.values, color="teal")
+        plt.title("Average Message Length per Employee")
+        plt.xlabel("Employee")
+        plt.ylabel("Average Message Length (characters)")
+        plt.xticks(rotation=75)
+        plt.tight_layout()
+        plt.savefig("visualizations/avg_message_length_per_employee.png")
+        plt.close()

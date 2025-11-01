@@ -22,10 +22,11 @@ else:
     
 
 p = PlotData(df)
-p.plot_sentiment_distribution()
-p.plot_message_activity_over_time()
-p.message_length_distribution()
-p.plot_avg_sentiment_over_time()
-p.plot_top_employees()
-p.plot_sentiment_per_employee()
-p.plot_length_by_sentiment()
+# p.plot_sentiment_distribution()
+# p.plot_message_activity_over_time()
+# p.message_length_distribution()
+# p.plot_avg_sentiment_over_time()
+# p.plot_top_employees()
+# p.plot_sentiment_per_employee()
+# p.plot_length_by_sentiment()
+p.plot_avg_message_length_per_employee()
