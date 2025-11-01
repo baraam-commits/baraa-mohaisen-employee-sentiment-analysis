@@ -13,7 +13,6 @@ if not os.path.exists("data\\labeld_sentiments.csv"):
     sl = SentimentLabeler(df)
 
     df = sl.get_sentiments()
-
     print(df)
     df.to_csv("data\\labeld_sentiments.csv", index=False)
 
@@ -22,8 +21,11 @@ else:
     df = data_loader.load_pandas_dataframe(clean=False)
     
 
-plotter = PlotData(df)
-plotter.plot_sentiment_distribution()
-plotter.plot_message_activity_over_time()
-plotter.message_length_distribution()
-
+p = PlotData(df)
+p.plot_sentiment_distribution()
+p.plot_message_activity_over_time()
+p.message_length_distribution()
+p.plot_avg_sentiment_over_time()
+p.plot_top_employees()
+p.plot_sentiment_per_employee()
+p.plot_length_by_sentiment()
