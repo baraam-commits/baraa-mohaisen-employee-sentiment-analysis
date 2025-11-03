@@ -1,4 +1,3 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -34,7 +33,7 @@ class PlotData:
         plt.savefig("visualizations/sentiment_distribution.png")
         plt.close()
 
-    def plot_message_activity_over_time(self, date_column="dt"):
+    def plot_message_activity_over_time(self, date_column="date"):
         """
         Plot number of messages per month.
         Shows communication frequency and trends over time.
@@ -79,7 +78,7 @@ class PlotData:
     # ------------------------------------------------------------
     # ADDITIONAL EDA PLOTS
     # ------------------------------------------------------------
-    def plot_avg_sentiment_over_time(self, date_column="dt"):
+    def plot_avg_sentiment_over_time(self, date_column="date"):
         """
         Plot the monthly average sentiment score.
         Shows if employee sentiment improves or declines over time.

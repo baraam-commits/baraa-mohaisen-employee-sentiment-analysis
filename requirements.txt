@@ -1,10 +1,17 @@
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-transformers
-torch
-textblob
-jupytext
-ipykernel
+# Core scientific stack
+pandas==2.2.3
+numpy==1.26.4
+matplotlib==3.9.2
+seaborn==0.13.2
+scikit-learn==1.5.2
+
+# NLP / Transformers
+transformers==4.45.2
+torch==2.5.1+cu121
+
+# Text utilities
+textblob==0.18.0.post0
+
+# Jupyter / development
+jupytext==1.16.4
+ipykernel==6.29.5

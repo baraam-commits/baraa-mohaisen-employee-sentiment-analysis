@@ -11,10 +11,6 @@ class LoadData:
         # helper function to orginze and clean the dataframe.
         def _prep_df(df):
             
-            # Convert date to datetime and sort by order for downstream processing
-            df["dt"] = pd.to_datetime(df["date"], errors="coerce", infer_datetime_format=True)
-            df = df.dropna(subset=["dt"])
-            df = df.sort_values(["from", "dt"], kind="mergesort").reset_index(drop=True)
             
 
             
@@ -27,11 +23,20 @@ class LoadData:
                 df["employee_id"] = df["from"].str.extract(r"([^@]+)").iloc[:,0].str.lower()
                 
                 # drop any duplicates
-                df = df.drop_duplicates(subset=["employee_id", "dt", "text"])
+                df = df.drop_duplicates(subset=["employee_id", "date", "text"])
 
                 # Strip any newlines, multiple spaces, and non printables
                 import re
                 df["text"] = df["text"].apply(lambda s: re.sub(r"\s+", " ", s.strip()) if isinstance(s, str) else "")
-                return df
+                
+            else:
+                df = df.dropna(subset=["date"])
+
+            # Convert date to datetime and sort by order for downstream processing
+            
+            df["date"] = pd.to_datetime(df["date"])
+            df = df.sort_values(["from", "date"], kind="mergesort").reset_index(drop=True)
+            
+            return df
 
         return _prep_df(data_frame)
