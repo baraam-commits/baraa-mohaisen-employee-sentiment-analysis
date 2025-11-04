@@ -1,14 +1,16 @@
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import pipeline
+import pandas as pd
 import torch
 from tqdm import tqdm
-
+from typing import List
 class SentimentLabeler:
     """
     SentimentLabeler:
-    Uses a 3-class sentiment model (POSITIVE / NEUTRAL / NEGATIVE).
+    Uses a trusted and fallback model to return a 3-class sentiment classification (POSITIVE / NEUTRAL / NEGATIVE).
+    Inputs a pandas DataFrame with a "text" column and appends a "sentiment" column with classifications.
     """
 
-    def __init__(self, df=None,
+    def __init__(self, df: pd.DataFrame,
                 trusted_model_name="distilbert-base-uncased-finetuned-sst-2-english",
                 fallback_model_name="j-hartmann/sentiment-roberta-large-english-3-classes"):
         self.df = df
@@ -32,31 +34,55 @@ class SentimentLabeler:
         }
 
     def _label_sentiments(self, texts: list[str]) -> list[str]:
-        """Run batched inference with progress bar and return normalized labels."""
+        """Run batched inference with progress bar and return normalized labels.
+
+        Args:
+            texts (list[str]): list of text that needs to be classified.
+
+        Returns:
+            list[str]: classification of each text at input index
+        """
         trusted_results = self.trusted_classifier(texts)
         fallback_results = self.fallback_classifier(texts)
         return_results = []
         
         for i in range(len(trusted_results) or len(fallback_results)):
-            # trusted model results for this text
+            # trusted model results for this text sorted from highest to lowest score
             trusted_scores = [
                 [self.label_map.get(entry["label"], entry["label"]).upper(), entry["score"]]
                 for entry in trusted_results[i]
             ]
             trusted_scores.sort(key=lambda x: x[1], reverse=True)
 
-            # fallback model results for this text
+            # fallback model results for this text sorted from highest to lowest score
             fallback_scores = [
                 [self.label_map.get(entry["label"], entry["label"]).upper(), entry["score"]]
                 for entry in fallback_results[i]
             ]
             fallback_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Call weighted ensemble method to determine which classification to use. 
             return_results.append(self._weighted_two_model_ensemble_classification(trusted_scores,fallback_scores))
             
         return return_results
+    
+    
+    def _weighted_two_model_ensemble_classification(self,cl1: List[list],cl2: List[list], w1 = 1.3, w2 = 1.0) -> str:
+        """
 
-    def _weighted_two_model_ensemble_classification(self,cl1:list,cl2:list, w1 = 1.3, w2 = 1.0) -> str:
+        Takes two lists of classifications with softmax scores after each classification, runs a weighted ensemble to determine final classification. 
+        With an initial weighted classification and a secondary fallback classification based on second predicted label.
 
+        Args:
+            cl1 (list): 2D list of [label, score] from trusted model. Sorted in decreasing order by score. must have length 2
+            cl2 (list): 2D list of [label, score] from fallback model. Sorted in decreasing order by score. must have length 3
+            w1 (float, optional): ensemble weight for trusted model. Defaults to 1.3.
+            w2 (float, optional): ensemble weight for trusted model on fallback classifification. Defaults to 1.0.
+
+        Returns:
+            str: Final sentiment label after weighted ensemble.
+        """
+        
         weighted_classification = cl1[0][0]
         
         if(cl1[0][1] * w1 < (cl2[0][1] + cl2[2][1])):

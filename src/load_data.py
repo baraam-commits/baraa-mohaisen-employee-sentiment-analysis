@@ -2,18 +2,27 @@ import pandas as pd
 import csv
 
 class LoadData:
+    """Takes in a CSV file path with body, from, date, Subject columns and returns a pandas dataframe.
+    """
     def __init__(self, file_path):
         self.file_path = file_path
     
     def load_pandas_dataframe(self,clean=True):
+        """returns a pandas dataframe of CSV normalized depending on clean bool, adds text, employee_id columns.
+            Sorts by date per employee entry. 
+
+        Args:
+            clean (bool, optional): Whether to clean data in columns set to false to reduce processing time IF data is already clean. Defaults to True.
+
+        Returns:
+            pd.DataFrame: Normalized pandas DataFrame. with text, employee_id columns added and sorted by date.
+        """
         data_frame = pd.read_csv(self.file_path)
         
-        # helper function to orginze and clean the dataframe.
+        # helper function to organize and clean the dataframe.
         def _prep_df(df):
             
-            
 
-            
             if clean:
 
                 # Combine Text: get rid of unnecessary spaces
