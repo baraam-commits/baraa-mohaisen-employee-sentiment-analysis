@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-
+import numpy as np
 class PlotData:
     def __init__(self, df):
         """
@@ -80,14 +80,15 @@ class PlotData:
     # ------------------------------------------------------------
     def plot_avg_sentiment_over_time(self, date_column="date"):
         """
-        Plot the monthly average sentiment score.
-        Shows if employee sentiment improves or declines over time.
+        Plot the monthly average sentiment score and line of best fit.
         """
         plt.figure(figsize=(12, 5))
+
         # Map sentiment to numeric values
         sent_map = {"POSITIVE": 1, "NEUTRAL": 0, "NEGATIVE": -1}
         self.df["sentiment_num"] = self.df["sentiment"].map(sent_map)
         self.df[date_column] = pd.to_datetime(self.df[date_column], errors="coerce")
+
         # Compute monthly mean sentiment
         monthly_mean = (
             self.df.dropna(subset=[date_column])
@@ -96,13 +97,27 @@ class PlotData:
             .mean()
             .sort_index()
         )
-        # Line plot of average sentiment over time
-        plt.plot(monthly_mean.index, monthly_mean.values, marker="o")
+
+        # Plot average sentiment
+        plt.plot(monthly_mean.index, monthly_mean.values, marker="o", label="Monthly Avg")
+
+        # Compute line of best fit
+        x = np.arange(len(monthly_mean))
+        y = monthly_mean.values
+        coeffs = np.polyfit(x, y, 1)  # linear fit: y = m*x + b
+        trend = np.poly1d(coeffs)
+
+        # Plot trend line
+        plt.plot(monthly_mean.index, trend(x), color="red", linestyle="--", label="Line of Best Fit")
+
+        # Labels
         plt.title("Average Sentiment Over Time")
         plt.xlabel("Month")
         plt.ylabel("Mean Sentiment Score")
         plt.xticks(rotation=75)
+        plt.legend()
         plt.tight_layout()
+
         plt.savefig("visualizations/avg_sentiment_over_time.png")
         plt.close()
 

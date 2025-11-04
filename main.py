@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from src.load_data import LoadData
 from src.labeling import SentimentLabeler
-from src.Plot_data import PlotData
+from src.plot_data import PlotData
 
 global df
 df = None
