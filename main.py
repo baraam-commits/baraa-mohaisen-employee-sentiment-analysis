@@ -4,7 +4,7 @@ import os
 from src.load_data import LoadData
 from src.labeling import SentimentLabeler
 from src.plot_data import PlotData
-
+from src.ranking import EmployeeScoring
 global df
 df = None
 
@@ -37,7 +37,15 @@ def plot_preliminary_data():
     p.plot_sentiment_per_employee()
     p.plot_length_by_sentiment()
     p.plot_avg_message_length_per_employee()
-    
+
+
+
+
 load_data()
 print(df)
-plot_preliminary_data()
+# plot_preliminary_data()
+rank = EmployeeScoring(df)
+temp = (rank.get_rankings())
+
+temp.to_csv("data\\employee_monthly_sentiment_scores.csv", index=False)
+print(temp)
