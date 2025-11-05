@@ -4,12 +4,12 @@ import os
 from src.load_data import LoadData
 from src.labeling import SentimentLabeler
 from src.plot_data import PlotData
-from src.ranking import EmployeeScoring
+from src.ranking import EmployeeScoring , EmployeeRanking
 global df
 df = None
 
-def load_data():
-    if not os.path.exists("data\\labeld_sentiments.csv"):
+def load_data(file_path = "data\\labeld_sentiments.csv"):
+    if not os.path.exists(file_path):
         data_loader = LoadData("data\\test(in).csv")
         
         global df
@@ -18,11 +18,11 @@ def load_data():
         sl = SentimentLabeler(df)
 
         df = sl.get_sentiments()
-        df.to_csv("data\\labeld_sentiments.csv", index=False)
+        df.to_csv(file_path, index=False)
 
     else:
         
-        data_loader = LoadData("data\\labeld_sentiments.csv")
+        data_loader = LoadData(file_path)
         
         df = data_loader.load_pandas_dataframe(clean=False)
 
@@ -45,7 +45,13 @@ load_data()
 print(df)
 # plot_preliminary_data()
 rank = EmployeeScoring(df)
-temp = (rank.get_rankings())
+ranker = EmployeeRanking(df)
+temp = (rank.compute_scores())
 
-temp.to_csv("data\\employee_monthly_sentiment_scores.csv", index=False)
 print(temp)
+
+print(ranker.get_positive_rankings())
+print(ranker.get_negative_rankings())
+print(ranker.get_rankings())
+
+
