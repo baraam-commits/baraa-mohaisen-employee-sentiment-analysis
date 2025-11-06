@@ -54,4 +54,6 @@ print(ranker.get_positive_rankings())
 print(ranker.get_negative_rankings())
 print(ranker.get_rankings())
 
+print(rank.flight_risk_analysis(False))
+print(rank.flight_risk_analysis(True))
 
