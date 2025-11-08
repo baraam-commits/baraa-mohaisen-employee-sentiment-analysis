@@ -139,6 +139,7 @@ class SentimentLabeler:
         trusted_results = self.trusted_classifier(texts)
         fallback_results = self.fallback_classifier(texts)
         return_results = []
+        resultls_polarity = []
 
         for i in range(len(trusted_results) or len(fallback_results)):
             trusted_scores = [
@@ -153,13 +154,13 @@ class SentimentLabeler:
             ]
             fallback_scores.sort(key=lambda x: x[1], reverse=True)
 
-            return_results.append(
-                self._weighted_two_model_ensemble_classification(trusted_scores, fallback_scores)
-            )
+            final_label = self._weighted_two_model_ensemble_classification(trusted_scores, fallback_scores)
+            return_results.append(final_label[0])
+            resultls_polarity.append(final_label[1])
 
             # Optional: tqdm update here if wrapping loop with a progress bar
 
-        return return_results
+        return return_results, resultls_polarity
 
     def _weighted_two_model_ensemble_classification(
         self,
@@ -211,13 +212,21 @@ class SentimentLabeler:
         >>> SentimentLabeler(df=None)._weighted_two_model_ensemble_classification(cl1, cl2)
         'NEUTRAL'
         """
-        weighted_classification = cl1[0][0]
+        weighted_classification = cl1
 
         if (cl1[0][1] * w1) < (cl2[0][1] + cl2[2][1]):
-            weighted_classification = cl2[0][0]
+            weighted_classification = cl2
         elif (cl2[1][0] == cl1[1][0]) and ((cl2[0][1] + cl2[2][1]) > w2 * cl1[0][1]):
-            weighted_classification = cl2[0][0]
+            weighted_classification = cl2
 
+        polarity = 0
+        for label in weighted_classification:
+            if label[0] == "POSITIVE":
+                polarity += (1 * label[1])
+            elif label[0] == "NEGATIVE":
+                polarity -= (1 * label[1])
+                
+        weighted_classification = [weighted_classification[0][0], polarity]
         return weighted_classification
 
     def get_sentiments(self) -> pd.DataFrame:
@@ -247,5 +256,7 @@ class SentimentLabeler:
         """
         if "text" not in self.df.columns:
             raise ValueError("DataFrame must contain a 'text' column.")
-        self.df["sentiment"] = self._label_sentiments(self.df["text"].astype(str).tolist())
+        sentiments, polarities = self._label_sentiments(self.df["text"].astype(str).tolist())
+        self.df["sentiment"] = sentiments
+        self.df["polarity"] = polarities
         return self.df
