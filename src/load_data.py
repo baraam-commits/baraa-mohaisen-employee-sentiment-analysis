@@ -1,133 +1,139 @@
 import pandas as pd
-import csv
+import re
+from pathlib import Path
+from typing import Optional, Dict
 
 class LoadData:
     """
     Task 0 — Data ingestion and normalization.
 
-    Reads a raw CSV export of employee communications and prepares it
-    for sentiment analysis and downstream tasks (EDA, scoring, ranking).
+    Supports two schemas:
+      RAW:          ['Subject','body','from','date']
+      PREPROCESSED: includes at least ['employee_id','date'] and may have ['sentiment_num','text',...]
 
-    Expected Input CSV Columns
-    --------------------------
-    - 'body'    : message text body
-    - 'Subject' : message subject line
-    - 'from'    : sender email address
-    - 'date'    : send timestamp (any parseable string format)
-
-    Parameters
-    ----------
-    file_path : str or PathLike
-        Path to the CSV file to load.
-
-    Attributes
-    ----------
-    file_path : str
-        Location of the source CSV file on disk.
-
-    Output DataFrame Columns
-    -------------------------
-    - 'text'         : concatenated subject + body, normalized
-    - 'employee_id'  : lowercase string before '@' in sender address
-    - 'date'         : datetime64[ns] object
-    - All original columns retained unless dropped during cleaning
-
-    Notes
-    -----
-    - Cleaning removes duplicates by ['employee_id','date','text'].
-    - Non-printable and excessive whitespace are stripped from text.
-    - Sorting by ['from','date'] ensures chronological order per employee.
-    - When `clean=False`, skips heavy text normalization to speed up reloads.
+    Output (both cases):
+      - 'employee_id' : lowercased sender id (raw only; pass-through for preprocessed)
+      - 'date'        : pandas datetime64[ns]
+      - 'month'       : pandas Period[M]
+      - 'text'        : Subject + body normalized (raw only; preserved if present)
+      - 'text_len'    : len(text)
+      - 'word_count'  : count of word tokens in text (letters+digits)
+      - All original columns retained
     """
 
-    def __init__(self, file_path: str):
-        """
-        Initialize with file path.
+    RAW_REQ  = {"Subject", "body", "from", "date"}
+    PRE_REQ  = {"employee_id", "date"}
 
-        Parameters
-        ----------
-        file_path : str
-            Path to the CSV dataset.
+    def __init__(self, file_path: Optional[str] = None, columns_map: Optional[Dict[str, str]] = None):
+        """
+        columns_map: optional rename dict before processing, e.g. {'From':'from','Date':'date'}
         """
         self.file_path = file_path
+        self.columns_map = columns_map or {}
+        self.df = pd.DataFrame()
 
-    def load_pandas_dataframe(self, clean: bool = True) -> pd.DataFrame:
-        """
-        Load and optionally clean the employee message dataset.
+    # ---------------- internal utils ----------------
+    @staticmethod
+    def _norm_text(s: pd.Series) -> pd.Series:
+        # collapse whitespace, strip control chars
+        return (
+            s.fillna("")
+             .astype(str)
+             .str.replace(r"\s+", " ", regex=True)
+             .str.strip()
+        )
 
-        Parameters
-        ----------
-        clean : bool, default True
-            Whether to perform full normalization.  
-            Set to False when the CSV has already been preprocessed
-            (e.g., during reload after sentiment labeling).
+    @staticmethod
+    def _extract_employee_id(from_col: pd.Series) -> pd.Series:
+        # take substring before '@', lowercased
+        return (
+            from_col.fillna("")
+                    .astype(str)
+                    .str.extract(r"([^@]+)", expand=False)
+                    .str.lower()
+                    .fillna("")
+        )
 
-        Returns
-        -------
-        pandas.DataFrame
-            Normalized DataFrame with the following added/processed columns:
-              - 'text' : combined and cleaned message text
-              - 'employee_id' : lowercase sender identifier
-              - 'date' : converted to pandas datetime, sorted by employee
+    @staticmethod
+    def _add_lengths(df: pd.DataFrame) -> pd.DataFrame:
+        # derive text_len and word_count if 'text' exists
+        if "text" in df.columns:
+            df["text_len"] = df["text"].str.len()
+            # alphanum word tokens
+            df["word_count"] = df["text"].str.findall(r"\b[0-9A-Za-z]+\b").str.len()
+        else:
+            # safe defaults
+            df["text_len"] = 0
+            df["word_count"] = 0
+        return df
 
-        Processing Steps
-        ----------------
-        1) Read CSV with pandas.
-        2) If `clean=True`:
-             - Concatenate 'Subject' + 'body' → 'text'.
-             - Extract 'employee_id' from 'from' (before '@').
-             - Drop duplicates by ['employee_id','date','text'].
-             - Strip newlines, multiple spaces, and non-printables.
-           Else:
-             - Only drop rows with null 'date'.
-        3) Convert 'date' to datetime64.
-        4) Sort by ['from','date'] for stable chronological order.
-        5) Return cleaned DataFrame.
+    @staticmethod
+    def _ensure_datetime(df: pd.DataFrame, date_col: str = "date") -> pd.DataFrame:
+        df = df.dropna(subset=[date_col])
+        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        df = df.dropna(subset=[date_col])
+        return df
 
-        Raises
-        ------
-        FileNotFoundError
-            If the CSV path is invalid.
-        KeyError
-            If required columns ('body','from','date','Subject') are missing.
+    # ---------------- schema handlers ----------------
+    def _load_raw(self, df: pd.DataFrame, clean: bool) -> pd.DataFrame:
+        # normalize text if clean, else just build minimal columns
+        if clean:
+            text = self._norm_text(df["Subject"]) + " " + self._norm_text(df["body"])
+            df["text"] = self._norm_text(text)
+            df["employee_id"] = self._extract_employee_id(df["from"])
+            # drop duplicates on key tuple
+            df = df.drop_duplicates(subset=["employee_id", "date", "text"])
+        else:
+            # minimal: ensure required cols, derive employee_id if missing
+            if "employee_id" not in df.columns:
+                df["employee_id"] = self._extract_employee_id(df["from"])
+            if "text" not in df.columns:
+                text = df["Subject"].fillna("").astype(str) + " " + df["body"].fillna("").astype(str)
+                df["text"] = text
 
-        Examples
-        --------
-        >>> loader = LoadData("employee_emails.csv")
-        >>> df = loader.load_pandas_dataframe(clean=True)
-        >>> df.head()
-               from        date        employee_id        text
-        0   jsmith@... 2025-01-03  jsmith  Project update looks good.
-        1   jdoe@...   2025-01-04  jdoe    Scheduling next meeting...
-        """
-        data_frame = pd.read_csv(self.file_path)
+        df = self._ensure_datetime(df, "date")
+        df = df.sort_values(["employee_id", "date"], kind="mergesort").reset_index(drop=True)
+        df["month"] = df["date"].dt.to_period("M")
+        df = self._add_lengths(df)
+        return df
 
-        def _prep_df(df: pd.DataFrame) -> pd.DataFrame:
-            if ["Subject","body","date","from"] in df.columns:
-                
-                if clean:
-                    # Combine subject + body into normalized text
-                    df["text"] = (df["Subject"].fillna("") + " " + df["body"].fillna("")).str.strip()
+    def _load_preprocessed(self, df: pd.DataFrame, clean: bool) -> pd.DataFrame:
+        # keep as-is, just enforce datetime, order, month, lengths if text exists
+        df = self._ensure_datetime(df, "date")
+        # ensure column types
+        df["employee_id"] = df["employee_id"].astype(str).str.lower()
+        df = df.sort_values(["employee_id", "date"], kind="mergesort").reset_index(drop=True)
+        df["month"] = df["date"].dt.to_period("M")
+        if "text" in df.columns and clean:
+            df["text"] = self._norm_text(df["text"])
+        df = self._add_lengths(df)
+        return df
 
-                    # Extract employee_id before '@'
-                    df["employee_id"] = df["from"].str.extract(r"([^@]+)").iloc[:, 0].str.lower()
+    # ---------------- public API ----------------
+    def load_pandas_dataframe(self, clean: bool = True, file_path: Optional[str] = None) -> pd.DataFrame:
+        path = Path(file_path or self.file_path)
+        if not path:
+            raise FileNotFoundError("No file_path provided.")
+        if not path.exists():
+            raise FileNotFoundError(f"CSV not found: {path}")
 
-                    # Drop duplicates by key fields
-                    df = df.drop_duplicates(subset=["employee_id", "date", "text"])
+        df = pd.read_csv(path)
+        if self.columns_map:
+            df = df.rename(columns=self.columns_map)
 
-                    # Normalize whitespace and strip non-printables
-                    import re
-                    df["text"] = df["text"].apply(
-                        lambda s: re.sub(r"\s+", " ", s.strip()) if isinstance(s, str) else ""
-                    )
-                else:
-                    # Only ensure date column is valid
-                    df = df.dropna(subset=["date"])
+        cols = set(df.columns)
 
-                # Convert and sort by sender/date for temporal analysis
-                df["date"] = pd.to_datetime(df["date"])
-                df = df.sort_values(["from", "date"], kind="mergesort").reset_index(drop=True)
-                return df
-            elif ["employee_id","date","sentiment_num"] in df.columns:
-                return df.sort_values(by = "employee_id", inplace= True)
-        return _prep_df(data_frame)
+        # choose handler
+        if self.RAW_REQ.issubset(cols):
+            self.df = self._load_raw(df, clean=clean)
+        elif self.PRE_REQ.issubset(cols):
+            self.df = self._load_preprocessed(df, clean=clean)
+        else:
+            missing_raw = self.RAW_REQ - cols
+            missing_pre = self.PRE_REQ - cols
+            raise KeyError(
+                "CSV schema not recognized.\n"
+                f"- Missing RAW columns: {missing_raw}\n"
+                f"- Missing PREPROCESSED columns: {missing_pre}"
+            )
+        return self.df
