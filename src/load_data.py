@@ -103,28 +103,31 @@ class LoadData:
         data_frame = pd.read_csv(self.file_path)
 
         def _prep_df(df: pd.DataFrame) -> pd.DataFrame:
-            if clean:
-                # Combine subject + body into normalized text
-                df["text"] = (df["Subject"].fillna("") + " " + df["body"].fillna("")).str.strip()
+            if ["Subject","body","date","from"] in df.columns:
+                
+                if clean:
+                    # Combine subject + body into normalized text
+                    df["text"] = (df["Subject"].fillna("") + " " + df["body"].fillna("")).str.strip()
 
-                # Extract employee_id before '@'
-                df["employee_id"] = df["from"].str.extract(r"([^@]+)").iloc[:, 0].str.lower()
+                    # Extract employee_id before '@'
+                    df["employee_id"] = df["from"].str.extract(r"([^@]+)").iloc[:, 0].str.lower()
 
-                # Drop duplicates by key fields
-                df = df.drop_duplicates(subset=["employee_id", "date", "text"])
+                    # Drop duplicates by key fields
+                    df = df.drop_duplicates(subset=["employee_id", "date", "text"])
 
-                # Normalize whitespace and strip non-printables
-                import re
-                df["text"] = df["text"].apply(
-                    lambda s: re.sub(r"\s+", " ", s.strip()) if isinstance(s, str) else ""
-                )
-            else:
-                # Only ensure date column is valid
-                df = df.dropna(subset=["date"])
+                    # Normalize whitespace and strip non-printables
+                    import re
+                    df["text"] = df["text"].apply(
+                        lambda s: re.sub(r"\s+", " ", s.strip()) if isinstance(s, str) else ""
+                    )
+                else:
+                    # Only ensure date column is valid
+                    df = df.dropna(subset=["date"])
 
-            # Convert and sort by sender/date for temporal analysis
-            df["date"] = pd.to_datetime(df["date"])
-            df = df.sort_values(["from", "date"], kind="mergesort").reset_index(drop=True)
-            return df
-
+                # Convert and sort by sender/date for temporal analysis
+                df["date"] = pd.to_datetime(df["date"])
+                df = df.sort_values(["from", "date"], kind="mergesort").reset_index(drop=True)
+                return df
+            elif ["employee_id","date","sentiment_num"] in df.columns:
+                return df.sort_values(by = "employee_id", inplace= True)
         return _prep_df(data_frame)
