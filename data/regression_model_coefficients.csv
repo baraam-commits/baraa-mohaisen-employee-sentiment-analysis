@@ -1,0 +1,8 @@
+Feature,Coefficient
+text_len avg_raw_polarity,1.1807159153171725
+avg_raw_polarity sqrt_text_len,0.3384044044196099
+avg_raw_polarity sentiment_volatility,0.11342518682205567
+avg_raw_polarity log_sentiment_volatility,0.058290871918090174
+avg_raw_polarity sqrt_avg_subject_caps_density,0.018262048476170384
+avg_raw_polarity sqrt_avg_msg_len,7.031412489292654e-15
+is_flight_risk_month previous_month_sentiment_score,-0.019148853985405327

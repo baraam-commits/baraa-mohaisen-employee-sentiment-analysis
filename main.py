@@ -5,15 +5,16 @@ from src.load_data import LoadData
 from src.labeling import SentimentLabeler
 from src.plot_data import PlotData
 from src.ranking import EmployeeScoring , EmployeeRanking
-global df
-df = None
+from src.regression import FeatureEngineer, TrainRegressionModel, PredictScore
+
+
 
 def load_data(file_path = "data\\labeld_sentiments.csv"):
+    df = None
     if not os.path.exists(file_path):
-        data_loader = LoadData("data\\test(in).csv")
+        data_loader = LoadData()
         
-        global df
-        df = data_loader.load_pandas_dataframe()
+        df = data_loader.load_pandas_dataframe("data\\test(in).csv")
 
         sl = SentimentLabeler(df)
 
@@ -22,12 +23,14 @@ def load_data(file_path = "data\\labeld_sentiments.csv"):
 
     else:
         
-        data_loader = LoadData(file_path)
+        data_loader = LoadData()
         
-        df = data_loader.load_pandas_dataframe(clean=False)
+        df = data_loader.load_pandas_dataframe(clean=False, file_path= file_path)
 
     print(df)
-def plot_preliminary_data():
+    return df
+
+def plot_preliminary_data(df):
     p = PlotData(df)
     p.plot_sentiment_distribution()
     p.plot_message_activity_over_time()
@@ -41,19 +44,28 @@ def plot_preliminary_data():
 
 
 
-load_data()
-print(df)
-# plot_preliminary_data()
-rank = EmployeeScoring(df)
-ranker = EmployeeRanking(df)
-temp = (rank.compute_scores())
+labled_sent_df = load_data()
+monthly_sent = load_data("data\\employee_monthly_sentiment_scores.csv")
+print(labled_sent_df)
 
-print(temp)
+# teacher = TrainRegressionModel(monthly_sent,labled_sent_df)
+# teacher.train()
+# teacher.evaluate()
+# teacher.save_model_artifacts()
 
-print(ranker.get_positive_rankings())
-print(ranker.get_negative_rankings())
-print(ranker.get_rankings())
+predictor = PredictScore.predict()
 
-print(rank.flight_risk_analysis(False))
-print(rank.flight_risk_analysis(True))
+# # plot_preliminary_data()
+# rank = EmployeeScoring(df)
+# ranker = EmployeeRanking(df)
+# temp = (rank.compute_scores())
+
+# print(temp)
+
+# print(ranker.get_positive_rankings())
+# print(ranker.get_negative_rankings())
+# print(ranker.get_rankings())
+
+# print(rank.flight_risk_analysis(False))
+# print(rank.flight_risk_analysis(True))
 
