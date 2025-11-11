@@ -400,9 +400,10 @@ class PlotData:
         plt.savefig("visualizations/polarity_distribution.png")
         plt.close()
 
-    def plot_avg_polarity_over_time(self, date_column="dt"):
+    def plot_avg_polarity_over_time(self, date_column="date"):
         """Monthly mean polarity trend."""
          
+        plt.figure(figsize=(12, 5))
         d = self.df.dropna(subset=[date_column, "polarity"]).copy()
         if d.empty:
             return
@@ -412,13 +413,22 @@ class PlotData:
                .sort_index())
         if s.empty:
             return
-        plt.figure(figsize=(12,5))
-        plt.plot(s.index, s.values, marker="o")
-        plt.title("Average Polarity Over Time")
+        
+        plt.plot(s.index, s.values, marker="o", label="Monthly Avg")
+
+        x = np.arange(len(s))
+        y = s.values
+        coeffs = np.polyfit(x, y, 1)
+        trend = np.poly1d(coeffs)
+        plt.plot(s.index, trend(x), color="red", linestyle="--", label="Line of Best Fit")
+
+        plt.title("Average polarity Over Time")
         plt.xlabel("Month")
-        plt.ylabel("Mean Polarity")
+        plt.ylabel("Mean polarity Score")
         plt.xticks(rotation=75)
+        plt.legend()
         plt.tight_layout()
+
         plt.savefig("visualizations/avg_polarity_over_time.png")
         plt.close()
 
