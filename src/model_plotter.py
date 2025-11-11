@@ -25,12 +25,12 @@ class ModelPlotter:
     """
 
     def __init__(
-        self, 
-        pipeline_path: str, 
+        self,  
         raw_df: pd.DataFrame, 
         sentiment_scores_df: pd.DataFrame,
         test_size: float = 0.2, 
-        random_state: int = 42
+        random_state: int = 42,
+        pipeline_path: str = "data\\regression_model.joblib"
     ):
         """
         Initializes the plotter by loading the model and recreating the data.

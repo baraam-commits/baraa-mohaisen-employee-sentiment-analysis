@@ -6,6 +6,7 @@ from src.labeling import SentimentLabeler
 from src.plot_data import PlotData
 from src.ranking import EmployeeScoring , EmployeeRanking
 from src.regression import FeatureEngineer, TrainRegressionModel, PredictScore
+from src.model_plotter import ModelPlotter
 
 
 
@@ -53,8 +54,9 @@ print(labled_sent_df)
 # teacher.evaluate()
 # teacher.save_model_artifacts()
 
-predictor = PredictScore.predict()
-
+# predictor = PredictScore.predict()
+plotter = ModelPlotter(labled_sent_df,monthly_sent)
+plotter.run_all_plots()
 # # plot_preliminary_data()
 # rank = EmployeeScoring(df)
 # ranker = EmployeeRanking(df)
