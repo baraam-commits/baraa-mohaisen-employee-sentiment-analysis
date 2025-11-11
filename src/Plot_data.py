@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import numpy as np
+from typing import Optional
 
 class PlotData:
     """
@@ -387,3 +388,150 @@ class PlotData:
         plt.tight_layout()
         plt.savefig("visualizations/avg_message_length_per_employee.png")
         plt.close()
+
+    def plot_polarity_distribution(self):
+        """Histogram of raw polarity across all messages."""
+        plt.figure(figsize=(10,5))
+        plt.hist(self.df["polarity"].dropna().values, bins=40)
+        plt.title("Raw Polarity Distribution")
+        plt.xlabel("Polarity (-1 .. 1)")
+        plt.ylabel("Frequency")
+        plt.tight_layout()
+        plt.savefig("visualizations/polarity_distribution.png")
+        plt.close()
+
+    def plot_avg_polarity_over_time(self, date_column="dt"):
+        """Monthly mean polarity trend."""
+         
+        d = self.df.dropna(subset=[date_column, "polarity"]).copy()
+        if d.empty:
+            return
+        s = (d.set_index(date_column)
+               .resample("M")["polarity"]
+               .mean()
+               .sort_index())
+        if s.empty:
+            return
+        plt.figure(figsize=(12,5))
+        plt.plot(s.index, s.values, marker="o")
+        plt.title("Average Polarity Over Time")
+        plt.xlabel("Month")
+        plt.ylabel("Mean Polarity")
+        plt.xticks(rotation=75)
+        plt.tight_layout()
+        plt.savefig("visualizations/avg_polarity_over_time.png")
+        plt.close()
+
+    def plot_avg_polarity_per_employee(self, employee_column="employee_id"):
+        """Bar chart of mean polarity per employee."""
+         
+        if employee_column not in self.df.columns:
+            return
+        g = (self.df.dropna(subset=["polarity"])
+                    .groupby(employee_column)["polarity"]
+                    .mean()
+                    .sort_values(ascending=False))
+        if g.empty:
+            return
+        plt.figure(figsize=(12,6))
+        plt.barh(g.index, g.values)
+        plt.title("Average Polarity per Employee")
+        plt.xlabel("Mean Polarity")
+        plt.gca().invert_yaxis()
+        plt.tight_layout()
+        plt.savefig("visualizations/avg_polarity_per_employee.png")
+        plt.close()
+
+    def plot_length_vs_polarity(self, text_column="body"):
+        """Scatter: message length vs polarity, with linear fit."""
+         
+        d = self.df.dropna(subset=["polarity"]).copy()
+        d["message_length"] = d[text_column].astype(str).apply(len)
+        x = d["message_length"].astype(float).values
+        y = d["polarity"].astype(float).values
+        if len(d) == 0:
+            return
+        plt.figure(figsize=(10,6))
+        plt.scatter(x, y, s=8, alpha=0.4)
+        # simple least-squares line
+        try:
+            coeff = np.polyfit(x, y, deg=1)
+            xline = np.linspace(x.min(), x.max(), 200)
+            yline = coeff[0]*xline + coeff[1]
+            plt.plot(xline, yline)
+        except Exception:
+            pass
+        plt.title("Message Length vs Polarity")
+        plt.xlabel("Message Length (chars)")
+        plt.ylabel("Polarity")
+        plt.tight_layout()
+        plt.savefig("visualizations/length_vs_polarity.png")
+        plt.close()
+
+    def plot_polarity_heatmap(self, employee_column="employee_id"):
+        """Month x Employee heatmap of mean polarity (matplotlib imshow)."""
+         
+        if ("month" not in self.df.columns) or (employee_column not in self.df.columns):
+            return
+        piv = (self.df.dropna(subset=["polarity"])
+                         .pivot_table(index="month",
+                                      columns=employee_column,
+                                      values="polarity",
+                                      aggfunc="mean"))
+        if piv.empty:
+            return
+        piv = piv.sort_index()  # chronological by month
+        plt.figure(figsize=(min(16, 1+0.5*len(piv.columns)), 8))
+        im = plt.imshow(piv.values, aspect="auto", origin="lower")
+        plt.colorbar(im, label="Mean Polarity")
+        plt.yticks(range(len(piv.index)), piv.index)
+        plt.xticks(range(len(piv.columns)), piv.columns, rotation=75, ha="right")
+        plt.title("Mean Polarity by Month and Employee")
+        plt.tight_layout()
+        plt.savefig("visualizations/polarity_heatmap.png")
+        plt.close()
+
+    def run_all_plots(
+        self,
+        *,
+        date_column: str = "date",
+        sentiment_column: str = "sentiment",
+        employee_column: str = "employee_id",
+        text_column: str = "body",
+        polarity_date_column: Optional[str] = None,
+    ) -> None:
+        """
+        Generate every available visualization and persist each PNG.
+
+        Parameters
+        ----------
+        date_column : str, default "date"
+            Timestamp column for time-series charts.
+        sentiment_column : str, default "sentiment"
+            Sentiment label column.
+        employee_column : str, default "employee_id"
+            Identifier used for per-employee aggregations.
+        text_column : str, default "body"
+            Raw message text column for length-based analysis.
+        polarity_date_column : str or None, default None
+            Optional override for polarity trend timestamps. Falls back to
+            `date_column` when omitted.
+        """
+        polarity_dates = polarity_date_column or date_column
+        self.plot_sentiment_distribution(sentiment_column=sentiment_column)
+        self.plot_message_activity_over_time(date_column=date_column)
+        self.message_length_distribution(text_column=text_column)
+        self.plot_avg_sentiment_over_time(date_column=date_column)
+        self.plot_top_employees(employee_column=employee_column)
+        self.plot_sentiment_per_employee(employee_column=employee_column)
+        self.plot_length_by_sentiment(text_column=text_column)
+        self.plot_avg_message_length_per_employee(
+            text_column=text_column,
+            employee_column=employee_column,
+        )
+        self.plot_polarity_distribution()
+        self.plot_avg_polarity_over_time(date_column=polarity_dates)
+        self.plot_avg_polarity_per_employee(employee_column=employee_column)
+        self.plot_length_vs_polarity(text_column=text_column)
+        self.plot_polarity_heatmap(employee_column=employee_column)
+
