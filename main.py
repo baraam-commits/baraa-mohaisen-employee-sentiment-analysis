@@ -31,23 +31,15 @@ def load_data(file_path = "data\\labeld_sentiments.csv"):
     print(df)
     return df
 
-def plot_preliminary_data(df):
-    p = PlotData(df)
-    p.plot_sentiment_distribution()
-    p.plot_message_activity_over_time()
-    p.message_length_distribution()
-    p.plot_avg_sentiment_over_time()
-    p.plot_top_employees()
-    p.plot_sentiment_per_employee()
-    p.plot_length_by_sentiment()
-    p.plot_avg_message_length_per_employee()
 
 
 
 
 labled_sent_df = load_data()
 monthly_sent = load_data("data\\employee_monthly_sentiment_scores.csv")
-print(labled_sent_df)
+print(labled_sent_df.head)
+p = PlotData(labled_sent_df)
+p.run_all_plots()
 
 # teacher = TrainRegressionModel(monthly_sent,labled_sent_df)
 # teacher.train()
