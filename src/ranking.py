@@ -112,7 +112,7 @@ class EmployeeScoring:
         Parameters
         ----------
         return_names_only : bool, default True
-            - True  → return unique ['employee_id', 'flight_risk'] rows for employees that ever
+            - True  → return unique ['employee_id'] row for employees that ever
                       meet the criterion.
             - False → return summary per employee with:
                       ['employee_id','first_flight_risk','max_neg_sent_in_30d'].
