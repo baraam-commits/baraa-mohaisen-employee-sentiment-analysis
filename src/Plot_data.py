@@ -19,6 +19,8 @@ class PlotData:
         - 'sentiment' (categorical: {'POSITIVE','NEGATIVE','NEUTRAL'})
         - 'employee_id' (for per-employee plots)
         - 'body' or 'text' (for message length)
+        - 'sentiment_num' (Optional numarical represention of sentiments)
+        - 'polarity' (the skew towards the given classification)
 
     Attributes
     ----------
@@ -46,7 +48,15 @@ class PlotData:
         ------------
         - Creates 'visualizations/' directory if missing.
         """
-        self.df = df
+        self.df = df.copy()
+        sent_map = {"POSITIVE": 1, "NEUTRAL": 0, "NEGATIVE": -1}
+    
+        if "sentiment_num" not in self.df.columns:
+            self.df["sentiment_num"] = self.df["sentiment"].map(sent_map)
+            
+        if "message_length" not in self.df.columns:
+            self.df["message_length"] = self.df["body"].astype(str).apply(len)
+        
         os.makedirs("visualizations", exist_ok=True)
 
     # ------------------------------------------------------------
