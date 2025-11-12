@@ -100,7 +100,7 @@ class EmployeeScoring:
         rankings = rankings.groupby(["employee_id", "date"], as_index=False)["sentiment_num"].mean()
         rankings["date"] = rankings["date"].dt.to_period("M")
         rankings = rankings.groupby(["employee_id", "date"], as_index=False).sum()
-        return rankings
+        return rankings[["employee_id", "date",'sentiment_num']]
 
     def flight_risk_analysis(self, return_names_only: bool = True, min_neg_in_30d: int = 4) -> pd.DataFrame:
         """
@@ -239,12 +239,14 @@ class EmployeeRanking:
         KeyError
             If required columns are missing for the chosen mode.
         """
-        if not scores_available:
+        if 'sentiment_num' in df:
+            self.df = df
+        elif not scores_available:
             self.df = EmployeeScoring(df).compute_scores()
         else:
             self.df = df
 
-    def get_positive_rankings(self) -> pd.DataFrame:
+    def _get_positive_rankings(self) -> pd.DataFrame:
         """
         Return the top 3 employees per month with the highest sentiment scores.
 
@@ -270,7 +272,7 @@ class EmployeeRanking:
         ).groupby("date", as_index=False).head(3)
         return rankings
 
-    def get_negative_rankings(self) -> pd.DataFrame:
+    def _get_negative_rankings(self) -> pd.DataFrame:
         """
         Return the top 3 employees per month with the lowest sentiment scores.
 
@@ -296,7 +298,7 @@ class EmployeeRanking:
         ).groupby("date", as_index=False).head(3)
         return rankings
 
-    def get_rankings(self, drop_type: bool = False) -> pd.DataFrame:
+    def get_rankings(self, drop_type: bool = True) -> pd.DataFrame:
         """
         Produce a combined table of bottom-3 and top-3 per month.
 
@@ -329,10 +331,10 @@ class EmployeeRanking:
         3            E01  2025-07             3  Positive
         4            E05  2025-07             2  Positive
         """
-        negative_rankings = self.get_negative_rankings().copy()
+        negative_rankings = self._get_negative_rankings()
         negative_rankings["Type"] = "Negative"
 
-        positive_rankings = self.get_positive_rankings().copy()
+        positive_rankings = self._get_positive_rankings()
         positive_rankings["Type"] = "Positive"
 
         grouped_rankings = pd.concat(
@@ -345,7 +347,9 @@ class EmployeeRanking:
             inplace=True
         )
 
+        grouped_rankings.reset_index()
+        
         if drop_type:
-            grouped_rankings.drop(columns=["Type"], inplace=True)
+            return grouped_rankings[["employee_id","date","sentiment_num",]]
 
-        return grouped_rankings
+        return grouped_rankings[["employee_id","date","sentiment_num","Type"]]
