@@ -6,79 +6,143 @@ This project analyzes an unlabeled dataset of employee email messages to assess 
 
 The project is divided into six main tasks, following the project specification:
 
-1.  **Sentiment Labeling (Task 1):** A sophisticated ensemble model is used to label each message as `POSITIVE`, `NEGATIVE`, or `NEUTRAL`. This approach leverages two models to balance polarity detection with contextual nuance:
-    * **Primary Model:** `distilbert-base-uncased-finetuned-sst-2-english` (strong binary polarity).
-    * **Fallback Model:** `j-hartmann/sentiment-roberta-large-english-3-classes` (handles neutrality).
+---
 
-2.  **Exploratory Data Analysis (Task 2):** A series of visualizations are generated to validate the labeled data and ensure it reflects "normative" behavior. This includes analyzing sentiment distribution, temporal trends, and correlations between message length and sentiment.
+### **1. Sentiment Labeling (Task 1)**  
+A sophisticated ensemble model labels each message as `POSITIVE`, `NEGATIVE`, or `NEUTRAL`.  
+This balances polarity detection with contextual nuance.
 
-3.  **Employee Score Calculation (Task 3):** A monthly sentiment score is calculated for each employee by aggregating their message scores (Positive: `+1`, Negative: `-1`, Neutral: `0`).
-
-4.  **Employee Ranking (Task 4):** Based on the monthly scores, the top three positive and top three negative employees are identified for each month.
-
-5.  **Flight Risk Identification (Task 5):** A critical deliverable, this task identifies employees at "flight risk," defined as any employee who sends **4 or more negative messages within a 30-day rolling window**.
-
-6.  **Predictive Modeling (Task 6):** A "clever" predictive model was built to forecast an employee's next monthly sentiment score. This solution directly addresses the project's "cleverness test" by:
-    * **Engineering advanced features** like `sentiment_volatility` and `previous_month_score`.
-    * **Solving the multicollinearity trap** (e.g., `message_length` vs. `word_count`) using an automated `scikit-learn` pipeline.
-    * **Using `LassoCV`** to perform automatic feature selection and regularization, identifying the most significant predictors while shrinking redundant features to zero.
-
-## Repository Structure
-
-The project is organized in a modular and reproducible structure:
-
-. ├── notebooks/ │ └── main.ipynb # Main executable notebook ├── src/ │ ├── load_data.py # Handles data ingestion and preprocessing │ ├── labeling.py # Contains the ensemble sentiment labeling logic │ ├── Plot_data.py # Generates all EDA visualizations │ ├── ranking.py # Calculates monthly scores and flight risks │ ├── regression.py # Builds and trains the LassoCV pipeline │ └── model_plotter.py # Generates model diagnostic plots ├── data/ │ ├── test(in).csv # The raw, unlabeled input dataset │ ├── labeld_sentiments.csv # Cached data after Task 1 labeling │ ├── ... # Other data outputs ├── visualizations/ │ ├── ... # All output plots from EDA and modeling ├── requirements.txt # All Python dependencies └── README.md # This file
-
-## Installation & Setup
-
-1.  **Clone the repository:**
-    ```sh
-    git clone <your-repo-url>
-    cd employee-sentiment-analysis
-    ```
-
-2.  **Create a virtual environment (recommended):**
-    ```sh
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
-    ```
-
-3.  **Install dependencies:**
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-## How to Run
-
-The entire project pipeline is executed from the main Jupyter Notebook, which is designed to be read like a report.
-
-1.  **Start Jupyter:**
-    ```sh
-    jupyter lab
-    ```
-2.  **Open and run the notebook:**
-    Navigate to `notebooks/main.ipynb` and run the cells in order.
-
-**Note on Caching:** The sentiment labeling process (Task 1) is computationally expensive. The pipeline automatically saves the labeled results to `data/labeld_sentiments.csv`. On subsequent runs, it will load this cached file, skipping the slow labeling step. To re-run the labeling, delete this file.
+**Models used:**
+- **Primary:** `distilbert-base-uncased-finetuned-sst-2-english`  
+  - Strong performance in binary sentiment classification.
+- **Fallback:** `j-hartmann/sentiment-roberta-large-english-3-classes`  
+  - Enables explicit “NEUTRAL” detection.
 
 ---
 
-## Summary of Findings
+### **2. Exploratory Data Analysis (Task 2)**  
+Generated a suite of visualizations to understand distributions, trends, and message behaviors:
+- Sentiment over time  
+- Message length distributions  
+- Per-employee sentiment profiles  
+- Polarity and classification-confidence patterns
 
-This section fulfills the summary requirement of the project deliverables.
+Visualizations are produced through a dedicated `PlotData` class and saved as local PNG files for notebook/report inclusion.
 
-### Key Insights & Recommendations
+---
 
-* **Overall sentiment is improving:** The "Average Sentiment Over Time" plot shows a gradual upward trend in employee sentiment, validating that the model is capturing meaningful dynamic patterns, not just noise.
-* **Negative messages are more detailed:** The EDA shows that negative messages are, on average, longer and have a wider variance in length. This suggests employees are more verbose and elaborate when discussing issues. **Recommendation:** This provides a quantitative signal for managers to pay closer attention to uncharacteristically long messages.
-* **High-volume communication is often neutral:** Highly active employees (e.g., Lydia Delgado, John Arnold) show a larger proportion of neutral messages. This is consistent with managerial or administrative roles involving high volumes of factual, non-emotional communication.
-* **Sentiment is predictable:** The final regression model achieved an **R-squared of 0.795** on the held-out test set, indicating it can effectively predict future sentiment scores based on past behavior.
-* **Key predictors were identified:** The `LassoCV` model automatically identified statistically significant predictors of monthly sentiment, such as `previous_month_sentiment_score` and `avg_raw_polarity^2`, while successfully ignoring redundant, collinear features.
+### **3. Monthly Sentiment Scoring (Task 3)**  
+Each employee receives a monthly sentiment score computed from aggregated labeled messages.
 
-### Final Deliverables
+Metrics include:
+- Count of positive, negative, and neutral messages
+- Weighted sentiment score
+- Additional **polarity metric** computed from model weights:
+  - `+weight` for positive labels  
+  - `−weight` for negative labels
 
-* **Top 3 Positive/Negative Employees:**
-    The monthly rankings are generated by **Task 4** in the `notebooks/main.ipynb` notebook and saved to `data/employee_monthly_rankings.csv`.
+These scores form the basis for downstream modeling and risk detection.
 
-* **Flight Risk Employees:**
-    The full list of employees flagged as flight risks is generated by **Task 5** in the `notebooks/main.ipynb` notebook and saved to `data/flight_risk_employees.csv`.
+---
+
+### **4. Predictive Modeling (Task 4)**  
+A linear regression model is trained to predict next-month sentiment score for each employee.
+
+Pipeline:
+1. Feature engineering via `FeatureEngineer`
+2. Training via `TrainRegressionModel`
+3. Prediction through standardized `.predict()` API
+
+This model forecasts expected engagement trends based on historical sentiment data.
+
+---
+
+### **5. Employee Ranking (Task 5)**  
+Employees are ranked monthly based on:
+- Highest sentiment scores  
+- Lowest sentiment scores  
+- Sentiment change across months  
+
+Useful for identifying standout performers or early signs of morale issues.
+
+---
+
+### **6. Flight-Risk Detection (Task 6)**  
+Employees are flagged as **flight risks** when they show sustained negativity:
+- Rolling 30-day window  
+- `>= 4` negative messages triggers risk flag  
+
+The `flight_risk_analysis()` method supports:  
+- Returning only employee IDs  
+- Returning full event detail (`first_flight_risk`, `max_neg_sent_in_30d`)  
+
+Additional plotting methods visualize:
+- Negative-message rolling windows  
+- Flight-risk timelines  
+- Per-employee negativity patterns  
+- Aggregate organization-level risk overview
+
+---
+
+## Project Architecture
+
+src/
+├── data_loader.py
+├── sentiment_labeler.py
+├── employee_scoring.py
+├── regression.py
+├── flight_risk.py
+├── plot_data.py
+notebooks/
+visualizations/
+main.py
+README.md
+
+
+Each major task is encapsulated in a class-based module.
+
+---
+
+## Jupyter Notebook Workflow
+
+The notebook serves as the main interface for executing the full pipeline:
+- Load and inspect data
+- Run sentiment labeling
+- Generate EDA visuals
+- Aggregate monthly scores
+- Train regression model
+- Generate predictions
+- Run ranking and flight-risk analysis
+- Display stored PNG plots for reporting
+
+---
+
+## Polarity Metric
+
+During classification, each model output `(label, confidence)` contributes to a raw polarity score:
+
+if label == "POSITIVE": polarity += weight
+if label == "NEGATIVE": polarity -= weight
+
+
+This yields a continuous polarity scale reflecting classification confidence and strength of sentiment.
+
+Plots generated for polarity include:
+- Monthly polarity distributions  
+- Per-employee polarity trends  
+- Polarity vs. sentiment class scatterplots  
+- High-confidence polarity outlier charts  
+
+---
+
+## Overall Summary
+
+This project delivers a complete, modular sentiment-analysis pipeline designed for:
+- Efficient labeling of raw messages  
+- Clear monthly scoring systems  
+- Predictive modeling of employee morale  
+- Ranking insights  
+- Early detection of flight risks  
+- Robust visual analytics  
+
+The design emphasizes clarity, modularity, reproducibility, and extensibility for future analysis or integration into enterprise HR analytics systems.
